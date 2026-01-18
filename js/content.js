@@ -202,48 +202,92 @@ function getBestImageUrlSync(img) {
 }
 
 function extractMediaSync() {
-  const images = new Set();
-  const videos = new Set();
+  const mediaItems = [];
+  const seenUrls = new Set();
 
-  document.querySelectorAll('img').forEach(img => {
-    const bestUrl = getBestImageUrlSync(img);
-    if (bestUrl && !bestUrl.startsWith('data:') && bestUrl.startsWith('http')) {
-      if (img.naturalWidth > 50 || img.width > 50 || !img.complete) {
-        images.add(bestUrl);
-      }
+  function addImage(url) {
+    if (url && !url.startsWith('data:') && url.startsWith('http') && !seenUrls.has(url)) {
+      seenUrls.add(url);
+      mediaItems.push({ type: 'image', src: url });
     }
-  });
+  }
 
-  document.querySelectorAll('picture').forEach(picture => {
-    const img = picture.querySelector('img');
-    if (img) {
-      const bestUrl = getBestImageUrlSync(img);
-      if (bestUrl && bestUrl.startsWith('http')) {
-        images.add(bestUrl);
-      }
+  function addVideo(url) {
+    if (url && url.startsWith('http') && !seenUrls.has(url)) {
+      seenUrls.add(url);
+      mediaItems.push({ type: 'video', src: url });
     }
+  }
 
-    const sources = picture.querySelectorAll('source');
-    let largest = null;
-    let largestSize = 0;
-
-    sources.forEach(source => {
-      const srcset = source.srcset;
-      if (srcset) {
-        const parts = srcset.split(',').map(s => {
-          const p = s.trim().split(/\s+/);
-          return { url: p[0], size: parseInt(p[1]) || 0 };
-        });
-        parts.forEach(p => {
-          if (p.size > largestSize) {
-            largestSize = p.size;
-            largest = p.url;
-          }
-        });
+  document.querySelectorAll('img, picture, video, iframe, a[href], [data-video], [data-video-src], object, embed').forEach(el => {
+    if (el.tagName === 'IMG') {
+      const bestUrl = getBestImageUrlSync(el);
+      if (bestUrl && (el.naturalWidth > 50 || el.width > 50 || !el.complete)) {
+        const parentLink = el.closest('a');
+        if (parentLink?.href && /\.(jpg|jpeg|png|gif|webp|avif)(\?.*)?$/i.test(parentLink.href)) {
+          addImage(parentLink.href);
+        } else {
+          addImage(bestUrl);
+        }
       }
-    });
-
-    if (largest) images.add(largest);
+    } else if (el.tagName === 'PICTURE') {
+      const img = el.querySelector('img');
+      if (img) {
+        const bestUrl = getBestImageUrlSync(img);
+        addImage(bestUrl);
+      }
+      const sources = el.querySelectorAll('source');
+      let largest = null;
+      let largestSize = 0;
+      sources.forEach(source => {
+        const srcset = source.srcset;
+        if (srcset) {
+          srcset.split(',').forEach(s => {
+            const p = s.trim().split(/\s+/);
+            const size = parseInt(p[1]) || 0;
+            if (size > largestSize) {
+              largestSize = size;
+              largest = p[0];
+            }
+          });
+        }
+      });
+      if (largest) addImage(largest);
+    } else if (el.tagName === 'VIDEO') {
+      if (el.src) addVideo(el.src);
+      el.querySelectorAll('source').forEach(source => {
+        if (source.src) addVideo(source.src);
+      });
+      ['data-src', 'data-video', 'data-video-src', 'data-url', 'data-source'].forEach(attr => {
+        const val = el.getAttribute(attr);
+        if (val) addVideo(val);
+      });
+    } else if (el.tagName === 'IFRAME') {
+      const src = el.src;
+      if (src && (src.includes('youtube.com') || src.includes('youtu.be') ||
+          src.includes('vimeo.com') || src.includes('dailymotion.com') ||
+          src.includes('twitch.tv') || src.includes('streamable.com') ||
+          src.includes('gfycat.com') || src.includes('redgifs.com'))) {
+        addVideo(src);
+      }
+    } else if (el.tagName === 'A') {
+      const href = el.href;
+      if (href && VIDEO_EXTENSIONS.test(href)) {
+        addVideo(href);
+      }
+    } else if (el.tagName === 'OBJECT' || el.tagName === 'EMBED') {
+      const src = el.data || el.src;
+      if (src && VIDEO_EXTENSIONS.test(src)) {
+        addVideo(src);
+      }
+    } else {
+      ['data-video', 'data-video-src', 'data-video-url', 'data-src', 'data-mp4', 'data-webm'].forEach(attr => {
+        const val = el.getAttribute(attr);
+        if (val && val.startsWith('http') && VIDEO_EXTENSIONS.test(val)) {
+          addVideo(val);
+        }
+      });
+    }
   });
 
   document.querySelectorAll('*').forEach(el => {
@@ -251,96 +295,25 @@ function extractMediaSync() {
     const bgImage = style.backgroundImage;
     if (bgImage && bgImage !== 'none') {
       const match = bgImage.match(/url\(["']?(.*?)["']?\)/);
-      if (match && match[1] && match[1].startsWith('http')) {
-        images.add(match[1]);
+      if (match && match[1]) {
+        addImage(match[1]);
       }
     }
-  });
-
-  document.querySelectorAll('a[href]').forEach(a => {
-    const href = a.href;
-    if (href && /\.(jpg|jpeg|png|gif|webp|avif)(\?.*)?$/i.test(href)) {
-      const img = a.querySelector('img');
-      if (img) {
-        images.add(href);
-        images.delete(img.src);
-      }
-    }
-  });
-
-  document.querySelectorAll('video').forEach(video => {
-    if (video.src && video.src.startsWith('http')) {
-      videos.add(video.src);
-    }
-    video.querySelectorAll('source').forEach(source => {
-      if (source.src && source.src.startsWith('http')) {
-        videos.add(source.src);
-      }
-    });
-    const videoDataAttrs = ['data-src', 'data-video', 'data-video-src', 'data-url', 'data-source'];
-    videoDataAttrs.forEach(attr => {
-      const val = video.getAttribute(attr);
-      if (val && val.startsWith('http')) {
-        videos.add(val);
-      }
-    });
-  });
-
-  document.querySelectorAll('iframe').forEach(iframe => {
-    const src = iframe.src;
-    if (src && (src.includes('youtube.com') || src.includes('youtu.be') ||
-        src.includes('vimeo.com') || src.includes('dailymotion.com') ||
-        src.includes('twitch.tv') || src.includes('streamable.com') ||
-        src.includes('gfycat.com') || src.includes('redgifs.com'))) {
-      videos.add(src);
-    }
-  });
-
-  document.querySelectorAll('a[href]').forEach(a => {
-    const href = a.href;
-    if (href && VIDEO_EXTENSIONS.test(href)) {
-      videos.add(href);
-    }
-  });
-
-  document.querySelectorAll('[data-video], [data-video-src], [data-video-url], [data-src], [data-mp4], [data-webm]').forEach(el => {
-    const attrs = ['data-video', 'data-video-src', 'data-video-url', 'data-src', 'data-mp4', 'data-webm'];
-    attrs.forEach(attr => {
-      const val = el.getAttribute(attr);
-      if (val && val.startsWith('http') && VIDEO_EXTENSIONS.test(val)) {
-        videos.add(val);
-      }
-    });
-  });
-
-  document.querySelectorAll('source[src]').forEach(source => {
-    const src = source.src;
-    const type = source.type || '';
-    if (src && src.startsWith('http') && (VIDEO_EXTENSIONS.test(src) || type.startsWith('video/'))) {
-      videos.add(src);
-    }
-  });
-
-  document.querySelectorAll('object[data], embed[src]').forEach(el => {
-    const src = el.data || el.src;
-    if (src && src.startsWith('http') && VIDEO_EXTENSIONS.test(src)) {
-      videos.add(src);
-    }
-  });
-
-  document.querySelectorAll('*').forEach(el => {
     if (el.tagName === 'SCRIPT' && el.type === 'application/ld+json') {
       try {
         const data = JSON.parse(el.textContent);
-        findVideosInObject(data, videos);
+        const jsonVideos = new Set();
+        findVideosInObject(data, jsonVideos);
+        jsonVideos.forEach(url => addVideo(url));
       } catch (e) {}
     }
   });
 
-  return {
-    images: Array.from(images),
-    videos: Array.from(videos)
-  };
+  const images = mediaItems.filter(m => m.type === 'image').map(m => m.src);
+  const videos = mediaItems.filter(m => m.type === 'video').map(m => m.src);
+  const order = mediaItems.map((m, i) => ({ src: m.src, type: m.type, order: i }));
+
+  return { images, videos, order };
 }
 
 function findVideosInObject(obj, videos) {
@@ -375,9 +348,20 @@ async function validateAndUpgradeUrls(media) {
     upgradedImages.push(...results);
   }
 
+  const imageUrlMap = new Map();
+  media.images.forEach((orig, i) => imageUrlMap.set(orig, upgradedImages[i]));
+
+  const upgradedOrder = media.order?.map(item => {
+    if (item.type === 'image' && imageUrlMap.has(item.src)) {
+      return { ...item, src: imageUrlMap.get(item.src) };
+    }
+    return item;
+  });
+
   return {
     images: [...new Set(upgradedImages)],
-    videos: media.videos
+    videos: media.videos,
+    order: upgradedOrder
   };
 }
 
@@ -398,21 +382,34 @@ async function saveMedia(media, validate = false) {
   let maxOrder = Math.max(0, ...existing.imageOrder, ...existing.videoOrder);
   let hasNew = false;
 
-  finalMedia.images.forEach(src => {
-    if (!existing.images.includes(src)) {
-      existing.images.push(src);
-      existing.imageOrder.push(++maxOrder);
-      hasNew = true;
-    }
-  });
-
-  finalMedia.videos.forEach(src => {
-    if (!existing.videos.includes(src)) {
-      existing.videos.push(src);
-      existing.videoOrder.push(++maxOrder);
-      hasNew = true;
-    }
-  });
+  if (finalMedia.order) {
+    finalMedia.order.forEach(item => {
+      if (item.type === 'image' && !existing.images.includes(item.src)) {
+        existing.images.push(item.src);
+        existing.imageOrder.push(++maxOrder);
+        hasNew = true;
+      } else if (item.type === 'video' && !existing.videos.includes(item.src)) {
+        existing.videos.push(item.src);
+        existing.videoOrder.push(++maxOrder);
+        hasNew = true;
+      }
+    });
+  } else {
+    finalMedia.images.forEach(src => {
+      if (!existing.images.includes(src)) {
+        existing.images.push(src);
+        existing.imageOrder.push(++maxOrder);
+        hasNew = true;
+      }
+    });
+    finalMedia.videos.forEach(src => {
+      if (!existing.videos.includes(src)) {
+        existing.videos.push(src);
+        existing.videoOrder.push(++maxOrder);
+        hasNew = true;
+      }
+    });
+  }
 
   if (hasNew) {
     await chrome.storage.local.set({ [storageKey]: existing });
@@ -510,13 +507,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'getStatus') {
     sendResponse({ observing: isObserving });
     return true;
-  }
-});
-
-chrome.runtime.sendMessage({ action: 'checkAutoScan' }, (response) => {
-  if (response?.shouldObserve) {
-    storageKey = response.storageKey;
-    startObserver();
   }
 });
 

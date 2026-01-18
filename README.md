@@ -76,4 +76,5 @@ Open source - free to use and modify for any purpose.
 ## Links
 
 - [GitHub Repository](https://github.com/extralsc/galleryme-chrome-plugin)
+- [Privacy Policy](PRIVACY_POLICY.md)
 - [Buy Me a Coffee](https://buymeacoffee.com/christophers12)

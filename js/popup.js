@@ -125,54 +125,68 @@ function getCurrentItems() {
   return items;
 }
 
+async function injectContentScript() {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: currentTabId },
+      files: ['js/content.js']
+    });
+  } catch (e) {}
+}
+
 async function performScan() {
   scanBtn.disabled = true;
   scanBtn.textContent = 'Scanning...';
   gallery.innerHTML = '<p class="loading">Scanning page for media...</p>';
 
   try {
+    await injectContentScript();
+    await new Promise(r => setTimeout(r, 100));
     const response = await chrome.tabs.sendMessage(currentTabId, { action: 'scan' });
 
     if (response?.media) {
-      let addedImages = 0;
-      let addedVideos = 0;
+      let addedCount = 0;
 
       if (!mediaData.imageOrder) mediaData.imageOrder = [];
       if (!mediaData.videoOrder) mediaData.videoOrder = [];
 
       let maxOrder = Math.max(0, ...mediaData.imageOrder, ...mediaData.videoOrder);
 
-      response.media.images.forEach(src => {
-        if (!mediaData.images.includes(src)) {
-          mediaData.images.push(src);
-          mediaData.imageOrder.push(++maxOrder);
-          addedImages++;
-        }
-      });
-
-      response.media.videos.forEach(src => {
-        if (!mediaData.videos.includes(src)) {
-          mediaData.videos.push(src);
-          mediaData.videoOrder.push(++maxOrder);
-          addedVideos++;
-        }
-      });
+      if (response.media.order) {
+        response.media.order.forEach(item => {
+          if (item.type === 'image' && !mediaData.images.includes(item.src)) {
+            mediaData.images.push(item.src);
+            mediaData.imageOrder.push(++maxOrder);
+            addedCount++;
+          } else if (item.type === 'video' && !mediaData.videos.includes(item.src)) {
+            mediaData.videos.push(item.src);
+            mediaData.videoOrder.push(++maxOrder);
+            addedCount++;
+          }
+        });
+      } else {
+        response.media.images.forEach(src => {
+          if (!mediaData.images.includes(src)) {
+            mediaData.images.push(src);
+            mediaData.imageOrder.push(++maxOrder);
+            addedCount++;
+          }
+        });
+        response.media.videos.forEach(src => {
+          if (!mediaData.videos.includes(src)) {
+            mediaData.videos.push(src);
+            mediaData.videoOrder.push(++maxOrder);
+            addedCount++;
+          }
+        });
+      }
 
       await saveToStorage();
       updateCounts();
-      displayGallery(addedImages > 0 || addedVideos > 0);
+      displayGallery(addedCount > 0);
     }
   } catch (error) {
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId: currentTabId },
-        files: ['js/content.js']
-      });
-      setTimeout(performScan, 100);
-      return;
-    } catch (e) {
-      gallery.innerHTML = '<p class="placeholder">Cannot scan this page</p>';
-    }
+    gallery.innerHTML = '<p class="placeholder">Cannot scan this page</p>';
   }
 
   scanBtn.disabled = false;
@@ -335,6 +349,7 @@ clearBtn.addEventListener('click', async () => {
 autoScanToggle.addEventListener('change', async () => {
   if (autoScanToggle.checked) {
     autoScanStatus.textContent = 'Starting...';
+    await injectContentScript();
     await chrome.runtime.sendMessage({
       action: 'startAutoScan',
       tabId: currentTabId,

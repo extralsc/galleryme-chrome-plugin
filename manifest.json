@@ -23,18 +23,5 @@
   ],
   "background": {
     "service_worker": "js/background.js"
-  },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["js/content.js"],
-      "run_at": "document_idle"
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": ["gallery.html", "css/gallery.css", "js/gallery.js"],
-      "matches": ["<all_urls>"]
-    }
-  ]
+  }
 }

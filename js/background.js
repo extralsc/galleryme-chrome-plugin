@@ -49,23 +49,9 @@ async function updateBadgeFromStorage(tabId, url) {
   await updateBadge(tabId, count);
 }
 
-async function ensureContentScript(tabId) {
-  try {
-    await chrome.tabs.sendMessage(tabId, { action: 'getStatus' });
-  } catch {
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId },
-        files: ['js/content.js']
-      });
-    } catch (e) {}
-  }
-}
-
 async function startAutoScan(tabId, storageKey) {
   autoScanTabs.set(tabId, { storageKey, active: true });
   await saveAutoScanState();
-  await ensureContentScript(tabId);
   try {
     await chrome.tabs.sendMessage(tabId, {
       action: 'startObserver',
@@ -148,23 +134,6 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.url) {
     await updateBadgeFromStorage(tabId, tab.url);
-    await loadAutoScanState();
-
-    if (autoScanTabs.has(tabId)) {
-      const info = autoScanTabs.get(tabId);
-      const newStorageKey = getStorageKey(tab.url);
-      if (newStorageKey) {
-        info.storageKey = newStorageKey;
-        await saveAutoScanState();
-        await ensureContentScript(tabId);
-        try {
-          await chrome.tabs.sendMessage(tabId, {
-            action: 'startObserver',
-            storageKey: newStorageKey
-          });
-        } catch (e) {}
-      }
-    }
   }
 });
 
