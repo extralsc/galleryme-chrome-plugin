@@ -60,7 +60,9 @@ This is an open source educational project. I created it to learn how Chrome ext
 │   ├── popup.js
 │   └── gallery.js
 └── icons/
-    └── icon.png
+    ├── icon_16.png
+    ├── icon_48.png
+    └── icon_128.png
 ```
 
 ## Disclaimer
