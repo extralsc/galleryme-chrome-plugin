@@ -204,9 +204,19 @@ function getBestImageUrlSync(img) {
 function extractMediaSync() {
   const mediaItems = [];
   const seenUrls = new Set();
+  const videoUrls = new Set();
+  const videoPosterUrls = new Set();
+
+  document.querySelectorAll('video').forEach(video => {
+    if (video.src) videoUrls.add(video.src);
+    if (video.poster) videoPosterUrls.add(video.poster);
+    video.querySelectorAll('source').forEach(source => {
+      if (source.src) videoUrls.add(source.src);
+    });
+  });
 
   function addImage(url) {
-    if (url && !url.startsWith('data:') && url.startsWith('http') && !seenUrls.has(url)) {
+    if (url && !url.startsWith('data:') && url.startsWith('http') && !seenUrls.has(url) && !videoUrls.has(url) && !videoPosterUrls.has(url)) {
       seenUrls.add(url);
       mediaItems.push({ type: 'image', src: url });
     }
@@ -221,9 +231,11 @@ function extractMediaSync() {
 
   document.querySelectorAll('img, picture, video, iframe, a[href], [data-video], [data-video-src], object, embed').forEach(el => {
     if (el.tagName === 'IMG') {
+      if (el.closest('video')) return;
+      const parentLink = el.closest('a');
+      if (parentLink?.href && VIDEO_EXTENSIONS.test(parentLink.href)) return;
       const bestUrl = getBestImageUrlSync(el);
       if (bestUrl && (el.naturalWidth > 50 || el.width > 50 || !el.complete)) {
-        const parentLink = el.closest('a');
         if (parentLink?.href && /\.(jpg|jpeg|png|gif|webp|avif)(\?.*)?$/i.test(parentLink.href)) {
           addImage(parentLink.href);
         } else {

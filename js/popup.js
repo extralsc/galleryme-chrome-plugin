@@ -194,7 +194,7 @@ async function performScan() {
 }
 
 function openGallery(index) {
-  const url = chrome.runtime.getURL(`gallery.html?key=${encodeURIComponent(storageKey)}&index=${index}&filter=${currentTab}`);
+  const url = chrome.runtime.getURL(`gallery.html?key=${encodeURIComponent(storageKey)}&index=${index}&filter=${currentTab}&sort=${sortOrder}`);
   chrome.tabs.create({ url });
 }
 
@@ -237,7 +237,7 @@ function displayGallery(scrollToNew = false) {
     if (isVideo) {
       card.innerHTML = `
         <div class="card-image video-thumb">
-          ${isEmbed ? '<span class="play-icon">▶</span>' : `<video src="${item.src}" muted></video>`}
+          ${isEmbed ? '<span class="play-icon">▶</span>' : `<video src="${item.src}" muted preload="metadata"></video>`}
           <span class="card-index">${displayNum}</span>
           <span class="card-badge video">VIDEO</span>
         </div>
@@ -245,7 +245,7 @@ function displayGallery(scrollToNew = false) {
     } else {
       card.innerHTML = `
         <div class="card-image">
-          <img src="${item.src}" alt="Image ${displayNum}" loading="lazy">
+          <img src="${item.src}" alt="Image ${displayNum}" loading="lazy" decoding="async">
           <span class="card-index">${displayNum}</span>
         </div>
       `;
@@ -255,7 +255,7 @@ function displayGallery(scrollToNew = false) {
       if (isSelectMode) {
         toggleSelection(index, card);
       } else {
-        openGallery(item.originalIndex);
+        openGallery(index);
       }
     });
 

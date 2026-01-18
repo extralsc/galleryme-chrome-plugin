@@ -33,12 +33,13 @@ function getParams() {
     key: params.get('key'),
     index: parseInt(params.get('index') || '0', 10),
     filter: params.get('filter') || 'all',
+    sort: params.get('sort') || 'asc',
     isTemp: params.get('temp') === '1'
   };
 }
 
 async function loadMedia() {
-  const { key, index, filter, isTemp } = getParams();
+  const { key, index, filter, sort, isTemp } = getParams();
   currentFilter = filter;
   currentIndex = index;
 
@@ -61,11 +62,24 @@ async function loadMedia() {
     }
 
     items = [];
-    if (filter === 'all' || filter === 'images') {
+    if (filter === 'all') {
+      mediaData.images.forEach((src, idx) => {
+        const order = mediaData.imageOrder?.[idx] ?? idx;
+        items.push({ src, type: 'image', order });
+      });
+      mediaData.videos.forEach((src, idx) => {
+        const order = mediaData.videoOrder?.[idx] ?? (mediaData.images.length + idx);
+        items.push({ src, type: 'video', order });
+      });
+      items.sort((a, b) => a.order - b.order);
+    } else if (filter === 'images') {
       mediaData.images.forEach(src => items.push({ src, type: 'image' }));
-    }
-    if (filter === 'all' || filter === 'videos') {
+    } else if (filter === 'videos') {
       mediaData.videos.forEach(src => items.push({ src, type: 'video' }));
+    }
+
+    if (sort === 'desc') {
+      items.reverse();
     }
 
     if (items.length === 0) {
@@ -123,6 +137,8 @@ function showItem(index) {
     content.innerHTML = `<iframe src="${embedSrc}" allowfullscreen allow="autoplay"></iframe>`;
   } else if (isVideo) {
     content.innerHTML = `<video src="${item.src}" controls autoplay></video>`;
+    const video = content.querySelector('video');
+    video.play().catch(() => {});
   } else {
     content.innerHTML = `<img src="${item.src}" alt="Image ${index + 1}">`;
   }
@@ -157,9 +173,9 @@ function renderThumbnails() {
       thumb.className += ' thumb-video';
       thumb.innerHTML = `▶<span class="thumb-badge">${badge}</span>`;
     } else if (isVideo) {
-      thumb.innerHTML = `<video src="${item.src}" muted></video><span class="thumb-badge">${badge}</span>`;
+      thumb.innerHTML = `<video src="${item.src}" muted preload="metadata"></video><span class="thumb-badge">${badge}</span>`;
     } else {
-      thumb.innerHTML = `<img src="${item.src}" alt="Thumb ${index + 1}"><span class="thumb-badge">${badge}</span>`;
+      thumb.innerHTML = `<img src="${item.src}" alt="Thumb ${index + 1}" loading="lazy" decoding="async"><span class="thumb-badge">${badge}</span>`;
     }
 
     thumb.addEventListener('click', () => {
