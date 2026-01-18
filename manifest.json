@@ -1,0 +1,31 @@
+{
+  "name": "GalleryMe",
+  "description": "Extract and view all images and videos from any webpage",
+  "version": "1.0",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icons/icon.png"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "background": {
+    "service_worker": "js/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["js/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["gallery.html", "css/gallery.css", "js/gallery.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

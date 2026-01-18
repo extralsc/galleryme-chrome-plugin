@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="css/popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>GalleryMe</h1>
+    <p id="pageInfo" class="page-info"></p>
+
+    <div class="btn-group">
+      <button id="scanBtn" class="scan-btn">Scan Page for Media</button>
+      <button id="clearBtn" class="clear-btn" title="Clear saved media">Clear</button>
+    </div>
+
+    <div class="auto-scan-row">
+      <label class="toggle">
+        <input type="checkbox" id="autoScanToggle">
+        <span class="slider"></span>
+      </label>
+      <span class="auto-scan-label">Auto-detect new media</span>
+      <span id="autoScanStatus" class="auto-scan-status"></span>
+    </div>
+
+    <div class="tabs-row">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="all">All (<span id="allCount">0</span>)</button>
+        <button class="tab-btn" data-tab="images">Images (<span id="imageCount">0</span>)</button>
+        <button class="tab-btn" data-tab="videos">Videos (<span id="videoCount">0</span>)</button>
+      </div>
+      <div class="sort-control">
+        <select id="sortOrder" class="sort-select" title="Sort order">
+          <option value="asc">Oldest</option>
+          <option value="desc">Newest</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="select-row">
+      <button id="selectBtn" class="select-btn">Select</button>
+      <span id="selectedCount" class="selected-count"></span>
+      <button id="playSelectedBtn" class="play-selected-btn" disabled>▶ Play Selected</button>
+      <button id="cancelSelectBtn" class="cancel-select-btn">Cancel</button>
+    </div>
+
+    <div id="gallery" class="gallery">
+      <p class="placeholder">Click "Scan Page" to find media</p>
+    </div>
+
+    <div class="popup-footer">
+      <a href="https://github.com/extralsc/galleryme-chrome-plugin" target="_blank" class="info-link" title="About GalleryMe">ⓘ</a>
+      <a href="https://buymeacoffee.com/christophers12" target="_blank" class="bmc-button">
+        <span class="bmc-icon">☕</span>
+        <span>Buy me a coffee</span>
+      </a>
+    </div>
+  </div>
+
+  <script src="js/popup.js"></script>
+</body>
+</html>
