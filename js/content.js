@@ -207,19 +207,43 @@ function extractMediaSync() {
   const videoUrls = new Set();
   const videoPosterUrls = new Set();
 
+  const videoBaseNames = new Set();
+
+  function getBaseName(url) {
+    try {
+      const pathname = new URL(url).pathname;
+      const filename = pathname.split('/').pop();
+      return filename.replace(/\.[^.]+$/, '');
+    } catch { return ''; }
+  }
+
   document.querySelectorAll('video').forEach(video => {
-    if (video.src) videoUrls.add(video.src);
+    if (video.src) {
+      videoUrls.add(video.src);
+      videoBaseNames.add(getBaseName(video.src));
+    }
     if (video.poster) videoPosterUrls.add(video.poster);
     video.querySelectorAll('source').forEach(source => {
-      if (source.src) videoUrls.add(source.src);
+      if (source.src) {
+        videoUrls.add(source.src);
+        videoBaseNames.add(getBaseName(source.src));
+      }
     });
+    const container = video.closest('div, article, figure, li');
+    if (container) {
+      container.querySelectorAll('img').forEach(img => {
+        if (img.src) videoPosterUrls.add(img.src);
+      });
+    }
   });
 
   function addImage(url) {
-    if (url && !url.startsWith('data:') && url.startsWith('http') && !seenUrls.has(url) && !videoUrls.has(url) && !videoPosterUrls.has(url)) {
-      seenUrls.add(url);
-      mediaItems.push({ type: 'image', src: url });
-    }
+    if (!url || url.startsWith('data:') || !url.startsWith('http')) return;
+    if (seenUrls.has(url) || videoUrls.has(url) || videoPosterUrls.has(url)) return;
+    const baseName = getBaseName(url);
+    if (baseName && videoBaseNames.has(baseName)) return;
+    seenUrls.add(url);
+    mediaItems.push({ type: 'image', src: url });
   }
 
   function addVideo(url) {
